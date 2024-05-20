@@ -1,2 +1,61 @@
-# brasil_tb
+# Extração de dados brasileiros de tuberculose entre 2022-2023
 Extração de dados de tuberculose do sistema SINAN-TabWin
+
+##Pacotes utilizado para extração e tratamento
+pacman::p_load(read.dbc, foreign, tidyvrese) 
+
+##Link utilizado para download
+url22 <- "ftp://ftp.datasus.gov.br/dissemin/publicos/SINAN/DADOS/PRELIM/TUBEBR22.dbc"
+url23 <- "ftp://ftp.datasus.gov.br/dissemin/publicos/SINAN/DADOS/PRELIM/TUBEBR23.dbc"
+
+##Download
+download.file(url22, destfile = "TUBEBR22.dbc", mode = "wb")
+download.file(url23, destfile = "TUBEBR23.dbc", mode = "wb")
+
+##Importação - Formato DBC
+df22 = read.dbc("TUBEBR22.dbc")
+df23 = read.dbc("TUBEBR23.dbc")
+
+##Função para decodificação de idade
+converter_para_anos <- function(idade) {
+  ### Verifica se a idade é NA ou se tem menos de 4 dígitos
+  if (is.na(idade) || nchar(as.character(idade)) < 4) {
+    return(NA)
+  }
+  
+  ### Extrai o primeiro dígito para identificar a unidade
+  unidade <- as.numeric(substr(idade, 1, 1))
+  
+  ### Extrai os três últimos dígitos para obter o valor
+  valor <- as.numeric(substr(idade, 2, 4))
+  
+  ### Converte para anos baseado na unidade
+  if (!is.na(unidade)) {
+    if (unidade == 1) { # Horas
+      return(valor / 8760)  # Considera que um ano tem aproximadamente 8760 horas
+    } else if (unidade == 2) { # Dias
+      return(valor / 365)   # Considera que um ano tem aproximadamente 365 dias
+    } else if (unidade == 3) { # Meses
+      return(valor / 12)    # Considera que um ano tem 12 meses
+    } else if (unidade == 4) { # Anos
+      return(valor)         # Já está em anos
+    }
+  }
+  return(NA)  # Retorna NA para qualquer unidade não reconhecida ou se a unidade é NA
+}
+
+##Tratamento e tabulação dos valors gerais
+
+### ano de 2022
+df22$idade_em_anos = sapply(df22$NU_IDADE_N, converter_para_anos)
+df22_14 = df22 %>% filter(idade_em_anos<15)
+table22 = df22_14 %>% filter(BACILOSC_E == 1| HISTOPATOL==1|CULTURA_ES ==1|(TEST_MOLEC==1|TEST_MOLEC==2)) %>% summarise(count = n())
+print(table23)
+
+### ano de 2023
+df23$idade_em_anos = sapply(df23$NU_IDADE_N, converter_para_anos)
+df23_14 = df23 %>% filter(idade_em_anos<15)
+table23 = df23_14 %>% filter(BACILOSC_E == 1| HISTOPATOL==1|CULTURA_ES ==1|(TEST_MOLEC==1|TEST_MOLEC==2)) %>% summarise(count = n())
+print(table23)
+
+## R version 2023.12.1
